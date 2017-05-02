@@ -1,13 +1,24 @@
+import feedback
+import parameters
 from redbaron import RedBaron
 
+# returns list of NameNodes
 def getAllVariableNames(red, recursive = True):
-    variableNames = []
+    allVariableNames = []
 
-    variableNames.extend(getNamesFromAssignments(red, recursive))
-    variableNames.extend(getNamesFromParameters(red, recursive))
-    variableNames.extend(getNamesFromIterators(red, recursive))
+    allVariableNames.extend(getNamesFromAssignments(red, recursive))
+    allVariableNames.extend(getNamesFromParameters(red, recursive))
+    allVariableNames.extend(getNamesFromIterators(red, recursive))
 
-    return variableNames
+    return allVariableNames
+
+# returns set of strings
+def getAllVariableNamesSet(red, recursive = True):
+    allVariableNames = []
+    for nameNode in getAllVariableNames(red, recursive):
+        allVariableNames.append(nameNode.value)
+
+    return set(allVariableNames)
 
 def getNamesFromAssignments(red, recursive = True):
     assignments = []
@@ -34,15 +45,23 @@ def getNamesFromIterators(red, recursive = True):
 
     return iterators
 
-def calculateAverage(red):
-    names = getAllVariableNames(red)
+def calculateAverageNameLength(red):
+    names = getAllVariableNamesSet(red)
     lengthTotal = 0.0
     namesAmount = len(names)
     
     for name in names:
-        lengthTotal += len(name.value)
+        lengthTotal += len(name)
 
     return lengthTotal/namesAmount
+
+def tooShortAverageLength(red):
+    if calculateAverageNameLength(red) < parameters.minAverageNameLength:
+        return True
+
+def tooLongAverageLength(red):
+    if calculateAverageNameLength(red) > parameters.maxAverageNameLength:
+        return True
 
 # does not check iterators
 def numberOfSingleLetterNames(red):
@@ -62,12 +81,11 @@ def singleLetterNamePresent(red):
     if numberOfSingleLetterNames(red) > 0:
         return True
 
-# names longer than 25 characters
 def numberOfTooLongNames(red):
     numberOfTooLongNames = 0
 
     for name in getAllVariableNames(red):
-        if len(name.value) > 25:
+        if len(name.value) > parameters.maxNameLength:
             numberOfTooLongNames += 1
 
     return numberOfTooLongNames
@@ -76,15 +94,23 @@ def TooLongNamePresent(red):
     if numberOfTooLongNames(red) > 0:
         return True
 
-with open("random_program.py", "r") as source_code:
+with open("test_files/test_program.py", "r") as source_code:
     red = RedBaron(source_code.read())
 
 AllVariableNames = getAllVariableNames(red)
 print AllVariableNames
-print calculateAverage(red)
+
+if tooShortAverageLength(red):
+    print feedback.tooShortAverageLength
+
+if tooLongAverageLength(red):
+    print feedback.tooLongAverageLength
 
 if singleLetterNamePresent(red):
-    print "Variable names should not consist of a single letter, unless it is a for loop iterator."
+    print feedback.singleLetter
 
 if TooLongNamePresent(red):
-    print "Variable names of more than 25 characters should be avoided."
+    print feedback.tooLong
+
+print list(getAllVariableNamesSet(red))
+print calculateAverageNameLength(red)
