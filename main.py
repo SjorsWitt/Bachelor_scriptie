@@ -120,6 +120,41 @@ def getAllNameOccurrences(red, nameNode):
 def getLineNumber(red, nameNode):
     return nameNode.absolute_bounding_box.top_left.line
 
+# returns variable usage range in line number difference
+def getUsageLineRange(red, nameNode):
+    allOccurrences = getAllNameOccurrences(red, nameNode)
+    firstOccurrenceLine = getLineNumber(red, allOccurrences[0])
+    lastOccurrenceLine = getLineNumber(red, allOccurrences[-1])
+    return lastOccurrenceLine - firstOccurrenceLine
+
+####################################################################
+################# .at() DOES NOT WORK ON ENDLNOTES #################
+####################################################################
+# returns variable usage range in difference in indentation
+def getUsageIndentationRange(red, nameNode):
+    allOccurrences = getAllNameOccurrences(red, nameNode)
+    firstOccurrenceLine = getLineNumber(red, allOccurrences[0])
+    lastOccurrenceLine = getLineNumber(red, allOccurrences[-1])
+
+    indentation = len(allOccurrences[0].indentation)
+    # count function definition (with parameters)/for loop as same 'indentation scope'
+    if isParameter(red, allOccurrences[0]) or isIterator(red, allOccurrences[0]):
+        indentation += 1
+
+    minIndentation = maxIndentation = indentation
+
+    # update min/max indentation for every line from first to last occurrence
+    for i in range(firstOccurrenceLine + 1, lastOccurrenceLine + 1):
+        indentation = len(red.at(i).indentation)
+
+        if indentation < minIndentation:
+            minIndentation = indentation
+
+        if indentation > maxIndentation:
+            maxIndentation = indentation
+
+    return maxIndentation - minIndentation
+
 with open("test_files/test_program.py", "r") as source_code:
     red = RedBaron(source_code.read())
 
@@ -136,7 +171,7 @@ with open("test_files/test_program.py", "r") as source_code:
 #     print feedback.tooLong
 
 for nameNode in getAllVariableNames(red):
-    print nameNode, "\t", isIterator(red, nameNode)
-    # for occurrence in getAllNameOccurrences(red, nameNode):
-    #     print occurrence.value, getLineNumber(red, occurrence)
-    # print "--------------------------------------"
+    print "Range in lines: " + str(getUsageLineRange(red, nameNode)) #, getUsageIndentationRange(red, nameNode)
+    for occurrence in getAllNameOccurrences(red, nameNode):
+        print occurrence.value, getLineNumber(red, occurrence)
+    print "--------------------------------------"
