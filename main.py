@@ -12,7 +12,16 @@ def getAllVariableNames(red, includeIterators = True):
     for name in set(allVariableNames):
         allVariableNameNodes.append(red.find("name", value = name))
 
+    allVariableNameNodes.sort(key=lambda x: getLineNumber(x)) # sort on line number
     return allVariableNameNodes
+
+def getAllNameOccurrences(red, nameNode):
+    allOccurrences = []
+
+    for occurrence in red.find_all("name", value = nameNode.value):
+        allOccurrences.append(occurrence)
+
+    return allOccurrences
 
 def findVariableNamesFromCode(red, includeIterators = True):
     allVariableNames = []
@@ -49,19 +58,18 @@ def getNamesFromIterators(red):
 
     return iterators
 
-def isIterator(red, nameNode):
+def isIterator(nameNode):
     if nameNode.on_attribute == "iterator":
         return True
     return False
 
-def isParameter(red, nameNode):
+def isParameter(nameNode):
     if nameNode.parent.on_attribute == "arguments":
         return True
     return False
 
 # ignores multiple usages of variables
-def calculateAverageNameLength(red):
-    nameNodes = getAllVariableNames(red)
+def calculateAverageNameLength(nameNodes):
     lengthTotal = 0.0
     namesAmount = len(nameNodes)
     
@@ -70,108 +78,198 @@ def calculateAverageNameLength(red):
 
     return lengthTotal/namesAmount
 
-def tooShortAverageLength(red):
-    if calculateAverageNameLength(red) < parameters.minAverageNameLength:
+def tooShortAverageLength(nameNodes):
+    if calculateAverageNameLength(nameNodes) < parameters.MIN_AVERAGE_NAME_LENGTH:
         return True
     return False
 
-def tooLongAverageLength(red):
-    if calculateAverageNameLength(red) > parameters.maxAverageNameLength:
+def tooLongAverageLength(nameNodes):
+    if calculateAverageNameLength(nameNodes) > parameters.MAX_AVERAGE_NAME_LENGTH:
         return True
     return False
 
-# does not check iterators
-def getSingleLetterNames(red):
+def getBelowGoalAverageNames(nameNodes):
+    belowAverageNames = []
+
+    for nameNode in nameNodes:
+        if len(nameNode.value) < parameters.MIN_AVERAGE_NAME_LENGTH:
+            belowAverageNames.append(nameNode)
+
+    return belowAverageNames
+
+def getAboveGoalAverageNames(nameNodes):
+    aboveAverageNames = []
+
+    for nameNode in nameNodes:
+        if len(nameNode.value) > parameters.MAX_AVERAGE_NAME_LENGTH:
+            aboveAverageNames.append(nameNode)
+
+    return aboveAverageNames
+
+def getGoalAverageNames(nameNodes):
+    goodAverageNames = []
+
+    for nameNode in nameNodes:
+        if len(nameNode.value) > parameters.MIN_AVERAGE_NAME_LENGTH and len(nameNode.value) < parameters.MAX_AVERAGE_NAME_LENGTH:
+            goodAverageNames.append(nameNode)
+
+    return goodAverageNames
+
+# excludes iterators
+def getSingleLetterNames(nameNodes):
     singleLetterNames = []
 
-    for nameNode in getAllVariableNames(red, False):
+    nameNodesNoIterators = [nameNode for nameNode in nameNodes if not isIterator(nameNode)]
+
+    for nameNode in nameNodesNoIterators:
         if len(nameNode.value) == 1:
             singleLetterNames.append(nameNode)
 
     return singleLetterNames
 
-def singleLetterNamePresent(red):
-    if len(getSingleLetterNames(red)) > 0:
+def singleLetterNamePresent(nameNodes):
+    if len(getSingleLetterNames(nameNodes)) > 0:
         return True
     return False
 
-def getTooLongNames(red):
+def getTooLongNames(nameNodes):
     tooLongNames = []
 
-    for nameNode in getAllVariableNames(red):
-        if len(nameNode.value) > parameters.maxNameLength:
+    for nameNode in nameNodes:
+        if len(nameNode.value) > parameters.MAX_NAME_LENGTH:
             tooLongNames.append(nameNode)
 
     return tooLongNames
 
-def TooLongNamePresent(red):
-    if len(getTooLongNames(red)) > 0:
+def tooLongNamePresent(nameNodes):
+    if len(getTooLongNames(nameNodes)) > 0:
         return True
     return False
 
-def getAllNameOccurrences(red, nameNode):
-    allOccurrences = []
-
-    for occurrence in red.find_all("name", value = nameNode.value):
-        allOccurrences.append(occurrence)
-
-    return allOccurrences
-
-def getLineNumber(red, nameNode):
+def getLineNumber(nameNode):
     return nameNode.absolute_bounding_box.top_left.line
 
 # returns variable usage range in line number difference
-def getUsageLineRange(red, nameNode):
-    allOccurrences = getAllNameOccurrences(red, nameNode)
-    firstOccurrenceLine = getLineNumber(red, allOccurrences[0])
-    lastOccurrenceLine = getLineNumber(red, allOccurrences[-1])
+def getLineRange(nameNodes):
+    firstOccurrenceLine = getLineNumber(nameNodes[0])
+    lastOccurrenceLine = getLineNumber(nameNodes[-1])
     return lastOccurrenceLine - firstOccurrenceLine
 
-####################################################################
-################# .at() DOES NOT WORK ON ENDLNOTES #################
-####################################################################
-# returns variable usage range in difference in indentation
-def getUsageIndentationRange(red, nameNode):
-    allOccurrences = getAllNameOccurrences(red, nameNode)
-    firstOccurrenceLine = getLineNumber(red, allOccurrences[0])
-    lastOccurrenceLine = getLineNumber(red, allOccurrences[-1])
+# returns number of indentation tabs
+# def getIndentation(nameNode):
+#     indentation = len(nameNode.indentation.expandtabs(parameters.TAB_WIDTH))
 
-    indentation = len(allOccurrences[0].indentation)
-    # count function definition (with parameters)/for loop as same 'indentation scope'
-    if isParameter(red, allOccurrences[0]) or isIterator(red, allOccurrences[0]):
-        indentation += 1
+#     # count function definition (with parameters)/for loop as same 'indentation scope'
+#     if isParameter(nameNode) or isIterator(nameNode):
+#         indentation += parameters.TAB_WIDTH
 
-    minIndentation = maxIndentation = indentation
+#     return indentation/parameters.TAB_WIDTH
 
-    # update min/max indentation for every line from first to last occurrence
-    for i in range(firstOccurrenceLine + 1, lastOccurrenceLine + 1):
-        indentation = len(red.at(i).indentation)
+# # returns variable usage range in difference in indentation
+# def getUsageIndentationRange(nameNodes):
+#     iterNameNodes = iter(nameNodes)
+#     indentation = getIndentation(next(iterNameNodes))
+#     minIndentation = maxIndentation = indentation
 
-        if indentation < minIndentation:
-            minIndentation = indentation
+#     for nameNode in iterNameNodes:
+#         indentation = getIndentation(nameNode)
 
-        if indentation > maxIndentation:
-            maxIndentation = indentation
+#         if indentation < minIndentation:
+#             minIndentation = indentation
 
-    return maxIndentation - minIndentation
+#         if indentation > maxIndentation:
+#             maxIndentation = indentation
 
-with open("test_files/test_program.py", "r") as source_code:
+#     return maxIndentation - minIndentation
+
+# def getScope(nameNode):
+#     parent = nameNode.parent_find("def")
+
+#     if parent == None:
+#         scope = {}
+#         scope["NameNode"] = nameNode
+#         scope["Type"] = "Global"
+#     else:
+#         scope = {}
+#         scope["NameNode"] = nameNode
+#         scope["Type"] = "Local"
+#         boundingBox = parent.absolute_bounding_box
+#         scope["Box"] = (boundingBox.top_left.line, boundingBox.bottom_right.line)
+#         scope["Size"] = boundingBox.bottom_right.line - boundingBox.top_left.line
+
+#     return scope
+
+# returns all scopes of given NameNodes
+def getScopes(nameNodes):
+    scopes = {}
+    scopes["Global"] = []
+    scopes["Local"] = []
+
+    for nameNode in nameNodes:
+        parent = nameNode.parent_find("def")
+
+        if parent == None:
+            scopes["Global"].append(nameNode)
+
+        else:
+            boundingBox = parent.absolute_bounding_box
+
+            if any(scope["Box"] == (boundingBox.top_left.line, boundingBox.bottom_right.line) for scope in scopes["Local"]):
+                scope["Variables"].append(nameNode)
+
+            else:
+                scope = {}
+                scope["Box"] = (boundingBox.top_left.line, boundingBox.bottom_right.line)
+                scope["Size"] = boundingBox.bottom_right.line - boundingBox.top_left.line
+                scope["Variables"] = [nameNode]
+                scopes["Local"].append(scope)
+            
+    for scope in scopes["Local"]:
+        scope["Line range"] = getLineRange(scope["Variables"])
+
+    return scopes
+
+
+with open("test_files/homework3.py", "r") as source_code:
     red = RedBaron(source_code.read())
 
-# if tooShortAverageLength(red):
+allVariableNames = getAllVariableNames(red)
+
+# for nameNode in allVariableNames:
+#     allOccurrences = getAllNameOccurrences(red, nameNode)
+#     print "Range in lines: " + str(getLineRange(allOccurrences))
+#     print "Range in indentation: " + str(getUsageIndentationRange(allOccurrences))
+#     for occurrence in allOccurrences:
+#         print occurrence.value, getLineNumber(occurrence), getIndentation(occurrence)
+#     print "--------------------------------------"
+
+
+# if tooShortAverageLength(allVariableNames):
 #     print feedback.tooShortAverageLength
 
-# if tooLongAverageLength(red):
+# if tooLongAverageLength(allVariableNames):
 #     print feedback.tooLongAverageLength
 
-# if singleLetterNamePresent(red):
+# if singleLetterNamePresent(allVariableNames):
 #     print feedback.singleLetter
+#     for nameNode in getSingleLetterNames(allVariableNames):
+#         print "'" + nameNode.value + "', first appearance in line " + str(getLineNumber(nameNode)) + "."
+#     print
 
-# if TooLongNamePresent(red):
+# if tooLongNamePresent(allVariableNames):
 #     print feedback.tooLong
+#     for nameNode in getTooLongNames(allVariableNames):
+#         print "'" + nameNode.value + "', first appearance in line " + str(getLineNumber(nameNode)) + "."
+#     print
 
-for nameNode in getAllVariableNames(red):
-    print "Range in lines: " + str(getUsageLineRange(red, nameNode)) #, getUsageIndentationRange(red, nameNode)
-    for occurrence in getAllNameOccurrences(red, nameNode):
-        print occurrence.value, getLineNumber(red, occurrence)
-    print "--------------------------------------"
+
+# for nameNode in getBelowGoalAverageNames(allVariableNames):
+#     print getScopes(getAllNameOccurrences(red, nameNode))
+
+print allVariableNames
+print "Average variable name length:", calculateAverageNameLength(allVariableNames)
+print "Shorter than 10:", getBelowGoalAverageNames(allVariableNames)
+print "From 10 to 16:", getGoalAverageNames(allVariableNames)
+print "Longer than 16:", getAboveGoalAverageNames(allVariableNames)
+print "Single-letter names:", getSingleLetterNames(allVariableNames)
+print "Longer than 25:", getTooLongNames(allVariableNames)
