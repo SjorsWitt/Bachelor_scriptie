@@ -1,4 +1,6 @@
 # default parameters are based on found literature
-minAverageNameLength = 10
-maxAverageNameLength = 16
-maxNameLength = 25
+MIN_AVERAGE_NAME_LENGTH = 10
+MAX_AVERAGE_NAME_LENGTH = 16
+MAX_NAME_LENGTH = 25
+
+TAB_WIDTH = 4
