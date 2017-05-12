@@ -174,10 +174,12 @@ def getScopes(nameNodes):
                 scopes["Local"].append(scope)
 
     if scopes["Global"]:
-        scopes["Global"]["Variable range"] = getLineRange(scopes["Global"]["Variables"])
+        scopes["Global"]["Variables range"] = getLineRange(scopes["Global"]["Variables"])
+        scopes["Global"]["Variables amount"] = len(scopes["Global"]["Variables"])
 
     for scope in scopes["Local"]:
-        scope["Variable range"] = getLineRange(scope["Variables"])
+        scope["Variables range"] = getLineRange(scope["Variables"])
+        scope["Variables amount"] = len(scope["Variables"])
 
     return scopes
 
@@ -213,6 +215,7 @@ if tooShortAverageLength(allVariableNames):
 if tooLongAverageLength(allVariableNames):
     print feedback.tooLongAverageLength
 
+badNames = []
 for nameNode in aboveAverageNames:
     allOccurrences = getAllNameOccurrences(red, nameNode)
     lineRange = getLineRange(allOccurrences)
@@ -222,16 +225,23 @@ for nameNode in aboveAverageNames:
     # if scopes["Global"] and not scopes["Local"] and variablesAmount < 4:
     #     print nameNode, "is a good name."
 
-    if ((scopes["Global"] and scopes["Global"]["Variable range"] <= 6) or 
-        (scopes["Local"] and all(localScope["Variable range"] for localScope in scopes["Local"]) <= 6)):
-        print nameNode.value + " is bad."
+    # if ((scopes["Global"] and scopes["Global"]["Variables range"] <= 6) or 
+    #     (scopes["Local"] and all(localScope["Variables range"] for localScope in scopes["Local"]) <= 6)):
+    #     print nameNode.value + " is bad."
+
+    if scopes["Global"] and not scopes["Local"]:
+        if scopes["Global"]["Variables amount"] > 2:
+            if scopes["Global"]["Variables range"] < 4:
+                badNames.append(nameNode)
+
+
+    # if not scopes["Global"] and scopes["Local"]:
+
+
+    # if scopes["Global"] and scopes["Local"]:
+
 
 # if singleLetterNamePresent(allVariableNames):
 #     print feedback.singleLetter
 #     for nameNode in getSingleLetterNames(allVariableNames):
 #         print "'" + nameNode.value + "', first appearance in line " + str(getLineNumber(nameNode)) + ".\n"
-
-
-# allBelowAverageNames = []
-# for nameNode in getBelowGoalAverageNames(allVariableNames):
-#     print getScopes(getAllNameOccurrences(red, nameNode))
