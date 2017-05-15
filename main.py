@@ -148,7 +148,7 @@ def getLineRange(nameNodes):
     return max(lines) - min(lines)
 
 # returns all scopes of given NameNodes
-def getScopes(nameNodes):
+def getScopes(nameNodes, maxDif):
     scopes = {}
     scopes["Global"] = {}
     scopes["Local"] = []
@@ -174,12 +174,14 @@ def getScopes(nameNodes):
                 scopes["Local"].append(scope)
 
     if scopes["Global"]:
-        scopes["Global"]["Variables range"] = getLineRange(scopes["Global"]["Variables"])
-        scopes["Global"]["Variables amount"] = len(scopes["Global"]["Variables"])
+        # scopes["Global"]["Variables range"] = getLineRange(scopes["Global"]["Variables"])
+        # scopes["Global"]["Variables amount"] = len(scopes["Global"]["Variables"])
+        scopes["Global"]["Clusters"] = list(grouper(scopes["Global"]["Variables"], maxDif))
 
     for scope in scopes["Local"]:
-        scope["Variables range"] = getLineRange(scope["Variables"])
-        scope["Variables amount"] = len(scope["Variables"])
+        # scope["Variables range"] = getLineRange(scope["Variables"])
+        # scope["Variables amount"] = len(scope["Variables"])
+        scope["Clusters"] = list(grouper(scope["Variables"], maxDif))
 
     return scopes
 
@@ -189,6 +191,22 @@ def scopeIsPresent(scopes, boundingBox):
         if scope["Box"] == (boundingBox.top_left.line, boundingBox.bottom_right.line):
             return True, i
     return False, None
+
+# groups NameNodes into clusters seperated at least maxDif lines
+def grouper(nameNodes, maxDif):
+    prevLineNumber = None
+    group = []
+    for nameNode in nameNodes:
+        lineNumber = getLineNumber(nameNode)
+
+        if not prevLineNumber or lineNumber - prevLineNumber <= maxDif:
+            group.append(nameNode)
+        else:
+            yield group
+            group = [nameNode]
+        prevLineNumber = lineNumber
+    if group:
+        yield group
 
 
 with open("test_files/test_program.py", "r") as source_code:
@@ -202,46 +220,66 @@ aboveAverageNames = getAboveGoalAverageNames(allVariableNames)
 tooLongNames = getTooLongNames(allVariableNames)
 
 if singleLetterNames:
-    print feedback.singleLetter, "\n"
+    print "\n", feedback.SINGLE_LETTER
+    for nameNode in singleLetterNames:
+        print "'" + nameNode.value + "', first appearance in line " + str(getLineNumber(nameNode)) + "."
 
 if tooLongNames:
-    print feedback.tooLong
-    for nameNode in getTooLongNames(allVariableNames):
-        print "'" + nameNode.value + "', first appearance in line " + str(getLineNumber(nameNode)) + ".\n"
+    print "\n", feedback.TOO_LONG
+    for nameNode in tooLongNames:
+        print "'" + nameNode.value + "', first appearance in line " + str(getLineNumber(nameNode)) + "."
 
 if tooShortAverageLength(allVariableNames):
-    print feedback.tooShortAverageLength
+    print "\n", feedback.TOO_SHORT_AVERAGE
 
 if tooLongAverageLength(allVariableNames):
-    print feedback.tooLongAverageLength
+    print "\n", feedback.TOO_LONG_AVERAGE
 
-badNames = []
+badLongNames = []
 for nameNode in aboveAverageNames:
     allOccurrences = getAllNameOccurrences(red, nameNode)
-    lineRange = getLineRange(allOccurrences)
-    variablesAmount = len(allOccurrences)
-    scopes = getScopes(allOccurrences)
+    scopes = getScopes(allOccurrences,parameters.CLUSTER_DISTANCE)
+    done = False
 
-    # if scopes["Global"] and not scopes["Local"] and variablesAmount < 4:
-    #     print nameNode, "is a good name."
+    if scopes["Local"]:
+        for localScope in scopes["Local"]:
+            for cluster in localScope["Clusters"]:
+                if len(cluster) > parameters.LOCAL_DISTINCTION:
+                    badLongNames.append(nameNode)
+                    done = True
+                    break
+            if done:
+                break
 
-    # if ((scopes["Global"] and scopes["Global"]["Variables range"] <= 6) or 
-    #     (scopes["Local"] and all(localScope["Variables range"] for localScope in scopes["Local"]) <= 6)):
-    #     print nameNode.value + " is bad."
-
-    if scopes["Global"] and not scopes["Local"]:
-        if scopes["Global"]["Variables amount"] > 2:
-            if scopes["Global"]["Variables range"] < 4:
-                badNames.append(nameNode)
-
-
-    # if not scopes["Global"] and scopes["Local"]:
-
-
-    # if scopes["Global"] and scopes["Local"]:
+    if not done and scopes["Global"]:
+        for cluster in scopes["Global"]["Clusters"]:
+            if len(cluster) > parameters.GLOBAL_DISTINCTION:
+                badLongNames.append(nameNode)
+                break
 
 
-# if singleLetterNamePresent(allVariableNames):
-#     print feedback.singleLetter
-#     for nameNode in getSingleLetterNames(allVariableNames):
-#         print "'" + nameNode.value + "', first appearance in line " + str(getLineNumber(nameNode)) + ".\n"
+badShortNames = []
+for nameNode in belowAverageNames:
+    allOccurrences = getAllNameOccurrences(red, nameNode)
+    scopes = getScopes(allOccurrences, parameters.CLUSTER_DISTANCE)
+    done = False
+
+    if scopes["Global"]:
+        for cluster in scopes["Global"]["Clusters"]:
+            if len(cluster) <= parameters.GLOBAL_DISTINCTION:
+                badShortNames.append(nameNode)
+                done = True
+                break
+
+    if not done and scopes["Local"]:
+        for localScope in scopes["Local"]:
+            for cluster in localScope["Clusters"]:
+                if len(cluster) <= parameters.LOCAL_DISTINCTION:
+                    badShortNames.append(nameNode)
+                    done = True
+                    break
+            if done:
+                break
+
+print badLongNames
+print badShortNames
