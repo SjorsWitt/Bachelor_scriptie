@@ -87,8 +87,11 @@ def tooLongAverageLength(nameNodes):
         return True
     return False
 
-def getBelowGoalAverageNames(nameNodes):
+def getBelowGoalAverageNames(nameNodes, excludeIterators = False):
     belowAverageNames = []
+
+    if excludeIterators:
+        nameNodes = [nameNode for nameNode in nameNodes if not isIterator(nameNode)]
 
     for nameNode in nameNodes:
         if len(nameNode.value) > 1 and len(nameNode.value) < parameters.MIN_AVERAGE_NAME_LENGTH:
@@ -209,7 +212,7 @@ def grouper(nameNodes, maxDif):
         yield group
 
 
-with open("test_files/test_program.py", "r") as source_code:
+with open("test_files/data.py", "r") as source_code:
     red = RedBaron(source_code.read())
 
 allVariableNames = getAllVariableNames(red)
@@ -283,3 +286,5 @@ for nameNode in belowAverageNames:
 
 print badLongNames
 print badShortNames
+for name in badShortNames:
+    print name.value, "in line", getLineNumber(name)
