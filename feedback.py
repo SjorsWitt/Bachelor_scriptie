@@ -3,5 +3,5 @@ TOO_LONG_AVERAGE = "Your variable names are too long on average. Long variable n
 SINGLE_LETTER = "Variable names should not consist of a single letter, unless it is a very simple for loop iterator.\nYou should reconsider the following names: "
 TOO_LONG = "Variable names of more than 25 characters should be avoided where possible.\nThe following names are too long: "
 
-TOO_MANY_IN_ONE_CLUSTER = "A variable that is used this many times within a small scope should be shorter."
+TOO_MANY_IN_ONE_CLUSTER = "A variable that is used this many times within a small scope should be shorter to improve readability."
 TOO_LITTLE_IN_ONE_CLUSTER = "A variable that is used this little within a small scope should be more descriptive."
