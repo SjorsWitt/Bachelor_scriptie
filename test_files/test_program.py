@@ -28,3 +28,5 @@ something = doSomething(a, c)
 
 for i in myList:
 	d += i
+
+aboveAverageButNotTooLong
