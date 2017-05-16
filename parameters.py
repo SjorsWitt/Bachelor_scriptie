@@ -1,6 +1,6 @@
 # default parameters are based on found literature
-MIN_AVERAGE_NAME_LENGTH = 10 #10
-MAX_AVERAGE_NAME_LENGTH = 16 #16
+MIN_AVERAGE_NAME_LENGTH = 8 #10
+MAX_AVERAGE_NAME_LENGTH = 14 #16
 MAX_NAME_LENGTH = 25
 
 # minimum distance between clusters
