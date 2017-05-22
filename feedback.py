@@ -5,3 +5,7 @@ TOO_LONG = "Variable names of more than 25 characters should be avoided where po
 
 TOO_MANY_IN_ONE_CLUSTER = "A variable that is used this many times within a small scope should be shorter to improve readability."
 TOO_LITTLE_IN_ONE_CLUSTER = "A variable that is used this little within a small scope should be more descriptive."
+
+GLOBAL_BIG_CLUSTER = "Global variable names should be longer than local variables, unless it is used too much within a small piece of code."
+LOCAL_BIG_CLUSTER = "This variable is used too much within a small piece of code and should thus have a shorter name."
+SMALL_LOCAL_SCOPE = "Long names should not be used in local scopes that are relatively small."
