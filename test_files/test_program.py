@@ -24,9 +24,17 @@ def longNameInSmallScope(someList):
 		anotherLongNamedList.append(thisNameIsLongForItsScope)
 	return anotherLongNamedList
 
+def anotherFunction(someList):
+	anotherLongNamedList = someList
+	return anotherLongNamedList
+
 something = doSomething(a, c)
 
 for i in myList:
 	d += i
 
+anotherLongNamedList
+anotherLongNamedList
+anotherLongNamedList
+anotherLongNamedList
 aboveAverageButNotTooLong
