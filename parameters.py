@@ -6,8 +6,11 @@ MAX_NAME_LENGTH = 25
 # minimum distance between clusters
 CLUSTER_DISTANCE = 5
 
-# maximum nr of variables an above average name should be in one cluster in the global scope
-GLOBAL_DISTINCTION = 3
+# global cluster is considered big with at least GLOBAL_BIG_CLUSTER number of variables
+GLOBAL_BIG_CLUSTER = 4
 
-# maximum nr of variables an above average name should be in one cluster in a local scope
-LOCAL_DISTINCTION = 2
+# local cluster is considered big with at least GLOBAL_BIG_CLUSTER number of variables
+LOCAL_BIG_CLUSTER = 3
+
+# variable loses meaning over BIG_DISTANCE number of lines
+BIG_DISTANCE = 10
