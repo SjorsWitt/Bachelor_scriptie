@@ -3,7 +3,7 @@ import parameters
 import redbaron
 
 # returns list of NameNodes
-def getAllVariableNames(red):
+def getAllVariables(red):
     allVariableNames = []
     for nameNode in findVariableNamesFromCode(red):
         allVariableNames.append(nameNode.value)
@@ -322,15 +322,15 @@ if __name__ == "__main__":
     with open("test_files/test_program.py", "r") as source_code:
         red = redbaron.RedBaron(source_code.read())
 
-    allVariableNames = getAllVariableNames(red)
-    singleLetterNames = getSingleLetterNames(allVariableNames, True)
-    belowAverageNames = getBelowGoalAverageNames(allVariableNames, False, False)
-    # averageNames = getGoalAverageNames(allVariableNames)
-    aboveAverageNames = getAboveGoalAverageNames(allVariableNames)
-    tooLongNames = getTooLongNames(allVariableNames)
+    allVariables = getAllVariables(red)
+    singleLetterNames = getSingleLetterNames(allVariables, True)
+    belowAverageNames = getBelowGoalAverageNames(allVariables, False, True)
+    # averageNames = getGoalAverageNames(allVariables)
+    aboveAverageNames = getAboveGoalAverageNames(allVariables)
+    tooLongNames = getTooLongNames(allVariables)
 
-    if allVariableNames:
-        averageNameLength = calculateAverageNameLength(allVariableNames)
+    if allVariables:
+        averageNameLength = calculateAverageNameLength(allVariables)
 
     biggestGlobalCluster, biggestLocalCluster = getAboveAverageData(red, aboveAverageNames)
     smallestBigGlobalCluster, smallestBigLocalCluster, firstLocalAppearance, biggestLineRange = getBelowAverageData(red, belowAverageNames)
@@ -345,20 +345,20 @@ if __name__ == "__main__":
         for nameNode in tooLongNames:
             print "'" + nameNode.value + "', first appearance in line " + str(getLineNumber(nameNode)) + "."
 
-    if allVariableNames and averageNameLength < parameters.MIN_AVERAGE_NAME_LENGTH:
+    if allVariables and averageNameLength < parameters.MIN_AVERAGE_NAME_LENGTH:
         print "\n", feedback.TOO_SHORT_AVERAGE
 
-    if allVariableNames and averageNameLength > parameters.MAX_AVERAGE_NAME_LENGTH:
+    if allVariables and averageNameLength > parameters.MAX_AVERAGE_NAME_LENGTH:
         print "\n", feedback.TOO_LONG_AVERAGE
 
 
-    if smallestBigGlobalCluster and len(smallestBigGlobalCluster) < 4:
+    if smallestBigGlobalCluster and len(smallestBigGlobalCluster) < parameters.GLOBAL_BIG_CLUSTER:
         print "\n" + feedback.GLOBAL_TOO_SHORT_SMALL_CLUSTER
         print feedback.EXAMPLE_TOO_SHORT
         print "\t- '" + smallestBigGlobalCluster[0].value + "', first appearance in line " + \
               str(getLineNumber(smallestBigGlobalCluster[0]))
 
-    if smallestBigLocalCluster and len(smallestBigLocalCluster) < 3:
+    if smallestBigLocalCluster and len(smallestBigLocalCluster) < parameters.LOCAL_BIG_CLUSTER:
         print "\n" + feedback.LOCAL_TOO_SHORT_SMALL_CLUSTER
         print feedback.EXAMPLE_TOO_SHORT
         print "\t- '" + firstLocalAppearance.value + "', first appearance in line " + \
@@ -371,13 +371,13 @@ if __name__ == "__main__":
               str(getLineNumber(biggestLineRange["Variable"]))
 
 
-    if len(biggestGlobalCluster) >= 4:
+    if len(biggestGlobalCluster) >= parameters.GLOBAL_BIG_CLUSTER:
         print "\n" + feedback.GLOBAL_TOO_LONG_BIG_CLUSTER
         print feedback.EXAMPLE_TOO_LONG
         print "\t- '" + biggestGlobalCluster[0].value + "' is used too much in lines " + \
               str(getLineNumber(biggestGlobalCluster[0])) + "-" + str(getLineNumber(biggestGlobalCluster[-1]))
 
-    if len(biggestLocalCluster) >= 3:
+    if len(biggestLocalCluster) >= parameters.LOCAL_BIG_CLUSTER:
         print "\n" + feedback.LOCAL_TOO_LONG_BIG_CLUSTER
         print feedback.EXAMPLE_TOO_LONG
         print "\t- '" + biggestLocalCluster[0].value + "' is used too much in lines " + \
