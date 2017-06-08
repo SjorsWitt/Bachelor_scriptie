@@ -1,6 +1,7 @@
 import feedback
 import parameters
 import redbaron
+import enchant
 
 # returns list of NameNodes
 def getAllVariables(red):
@@ -290,10 +291,15 @@ def getBelowAverageData(red, nameNodes):
             elif len(smallestBigCluster) < len(smallestBigLocalCluster):
                 smallestBigLocalCluster = smallestBigCluster
                 firstLocalAppearance = firstAppearance
-            elif len(smallestBigCluster) == len(smallestBigLocalCluster) and \
-                            len(smallestBigCluster[0].value) < len(smallestBigLocalCluster[0].value):
-                smallestBigLocalCluster = smallestBigCluster
-                firstLocalAppearance = firstAppearance
+
+            elif len(smallestBigCluster) == len(smallestBigLocalCluster):
+                if isWord(smallestBigLocalCluster[0].value) and not isWord(smallestBigCluster[0].value):
+                    smallestBigLocalCluster = smallestBigCluster
+                    firstLocalAppearance = firstAppearance
+                elif (isWord(smallestBigLocalCluster[0].value) or not isWord(smallestBigCluster[0].value)) and \
+                                len(smallestBigCluster[0].value) < len(smallestBigLocalCluster[0].value):
+                    smallestBigLocalCluster = smallestBigCluster
+                    firstLocalAppearance = firstAppearance
 
     biggestLineRange = {}
     biggestLineRange["Line Range"] = 0
@@ -305,6 +311,11 @@ def getBelowAverageData(red, nameNodes):
             biggestLineRange["Variable"] = cluster[0][0]
 
     return smallestBigGlobalCluster, smallestBigLocalCluster, firstLocalAppearance, biggestLineRange
+
+def isWord(string):
+    nlDict = enchant.Dict("nl_NL")
+    engDict = enchant.Dict("en_US")
+    return (nlDict.check(string) or engDict.check(string))
 
 def getBiggestDistance(cluster):
     biggestDistance = 0
@@ -318,13 +329,15 @@ def getBiggestDistance(cluster):
 
 
 if __name__ == "__main__":
+    fileName = raw_input("Give file name: ")
 
-    with open("test_files/test_program.py", "r") as source_code:
+    with open("test_files/" + fileName + ".py", "r") as source_code:
+        print "Loading..."
         red = redbaron.RedBaron(source_code.read())
 
     allVariables = getAllVariables(red)
-    singleLetterNames = getSingleLetterNames(allVariables, True)
-    belowAverageNames = getBelowGoalAverageNames(allVariables, False, True)
+    singleLetterNames = getSingleLetterNames(allVariables, parameters.EXCLUDE_ITERATORS)
+    belowAverageNames = getBelowGoalAverageNames(allVariables, parameters.EXCLUDE_SINGLE_LETTER, parameters.EXCLUDE_ITERATORS)
     # averageNames = getGoalAverageNames(allVariables)
     aboveAverageNames = getAboveGoalAverageNames(allVariables)
     tooLongNames = getTooLongNames(allVariables)
