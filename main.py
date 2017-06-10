@@ -129,6 +129,7 @@ def getSingleLetterNames(nameNodes, excludeIterators = True):
 
     return singleLetterNames
 
+# returns names that are too long in every scenario (longer than parameters.MAX_NAME_LENGTH)
 def getTooLongNames(nameNodes):
     tooLongNames = []
 
@@ -193,9 +194,6 @@ def scopeIsPresent(scopes, boundingBox):
             return True, i
     return False, None
 
-def getScopeSize(scope):
-    return scope["Box"][1] - scope["Box"][0]
-
 # groups NameNodes into clusters seperated at least maxDif lines
 def grouper(nameNodes, maxDif):
     prevLineNumber = None
@@ -212,11 +210,40 @@ def grouper(nameNodes, maxDif):
     if group:
         yield group
 
-# get all data required for above average name lengths
-def getAboveAverageData(red, nameNodes):
+def getTooShortVariables(red, nameNodes):
+    tooShortVariables = {}
+    allClusters = []
 
-    biggestGlobalCluster = []
-    biggestLocalCluster = []
+    for nameNode in nameNodes:
+        allOccurrences = getAllNameOccurrences(red, nameNode)
+        scopes = getScopes(allOccurrences, parameters.CLUSTER_DISTANCE)
+
+        if scopes["Global"]:
+            allClusters.append(scopes["Global"]["Clusters"])  # collecting all local and global clusters
+
+            biggestClusterLength = len(max(scopes["Global"]["Clusters"], key=len))
+            if biggestClusterLength < parameters.GLOBAL_BIG_CLUSTER:
+                clusterLengths = tooShortVariables.setdefault(feedback.GLOBAL_TOO_SHORT_SMALL_CLUSTER, [])
+                clusterLengths.append((scopes["Global"]["Variables"][0], biggestClusterLength))
+
+        if scopes["Local"]:
+            for localScope in scopes["Local"]:
+                allClusters.append(localScope["Clusters"])  # collecting all local and global clusters
+
+                biggestClusterLength = len(max(localScope["Clusters"], key=len))
+                if biggestClusterLength < parameters.LOCAL_BIG_CLUSTER:
+                    clusterLengths = tooShortVariables.setdefault(feedback.LOCAL_TOO_SHORT_SMALL_CLUSTER, [])
+                    clusterLengths.append((localScope["Variables"][0], biggestClusterLength))
+
+    for clusters in allClusters:
+        distance = getBiggestDistance(clusters)
+        if distance > parameters.BIG_DISTANCE:
+            tooShortVariables.setdefault(feedback.TOO_SHORT_BIG_LINE_RANGE, []).append((clusters[0][0], distance))
+
+    return tooShortVariables
+
+def getTooLongVariables(red, nameNodes):
+    tooLongVariables = {}
 
     for nameNode in nameNodes:
         allOccurrences = getAllNameOccurrences(red, nameNode)
@@ -224,111 +251,75 @@ def getAboveAverageData(red, nameNodes):
 
         if scopes["Global"]:
             biggestCluster = max(scopes["Global"]["Clusters"], key=len)
+            clusterLength = len(biggestCluster)
 
-            if len(biggestCluster) > len(biggestGlobalCluster):
-                biggestGlobalCluster = biggestCluster
-            elif len(biggestCluster) == len(biggestGlobalCluster) and \
-                            len(biggestCluster[0].value) > len(biggestGlobalCluster[0].value):
-                biggestGlobalCluster = biggestCluster
-
-        if scopes["Local"]:
-            biggestClusters = []
-            for localScope in scopes["Local"]:
-                biggestClusters.append(max(localScope["Clusters"], key=len))
-
-            biggestCluster = max(biggestClusters, key=len)
-
-            if len(biggestCluster) > len(biggestLocalCluster):
-                biggestLocalCluster = biggestCluster
-            elif len(biggestCluster) == len(biggestLocalCluster) and \
-                            len(biggestCluster[0].value) > len(biggestLocalCluster[0].value):
-                biggestLocalCluster = biggestCluster
-
-    return biggestGlobalCluster, biggestLocalCluster
-
-# get all data required for below average name lengths
-def getBelowAverageData(red, nameNodes):
-
-    # smallest cluster of (biggest clusters per variable)
-    smallestBigGlobalCluster = None
-    smallestBigLocalCluster = None
-
-    # first appearance of same variable as in smallestBigLocalCluster
-    firstLocalAppearance = None
-
-    clusters = []
-    for nameNode in nameNodes:
-        allOccurrences = getAllNameOccurrences(red, nameNode)
-        scopes = getScopes(allOccurrences, parameters.CLUSTER_DISTANCE)
-
-        if scopes["Global"]:
-            clusters.append(scopes["Global"]["Clusters"]) # collecting all local and global clusters
-
-            biggestCluster = max(scopes["Global"]["Clusters"], key=len)
-
-            if smallestBigGlobalCluster == None:
-                smallestBigGlobalCluster = biggestCluster
-            if len(biggestCluster) < len(smallestBigGlobalCluster):
-                smallestBigGlobalCluster = biggestCluster
-            elif len(biggestCluster) == len(smallestBigGlobalCluster) and \
-                            len(biggestCluster[0].value) < len(smallestBigGlobalCluster[0].value):
-                smallestBigGlobalCluster = biggestCluster
+            if clusterLength >= parameters.GLOBAL_BIG_CLUSTER:
+                clusters = tooLongVariables.setdefault(feedback.GLOBAL_TOO_LONG_BIG_CLUSTER, [])
+                clusters.append((biggestCluster, clusterLength))
 
         if scopes["Local"]:
-            biggestClusters = []
-            firstAppearances = []
             for localScope in scopes["Local"]:
-                clusters.append(localScope["Clusters"]) # collecting all local and global clusters
-                biggestClusters.append(max(localScope["Clusters"], key=len))
-                firstAppearances.append(localScope["Variables"][0])
+                biggestCluster = max(localScope["Clusters"], key=len)
+                clusterLength = len(biggestCluster)
 
-            smallestBigCluster = min(biggestClusters, key=len)
-            firstAppearance = firstAppearances[biggestClusters.index(smallestBigCluster)]
+                if clusterLength >= parameters.LOCAL_BIG_CLUSTER:
+                    clusters = tooLongVariables.setdefault(feedback.LOCAL_TOO_LONG_BIG_CLUSTER, [])
+                    clusters.append((biggestCluster, clusterLength))
 
-            if smallestBigLocalCluster == None:
-                smallestBigLocalCluster = smallestBigCluster
-                firstLocalAppearance = firstAppearance
-            elif len(smallestBigCluster) < len(smallestBigLocalCluster):
-                smallestBigLocalCluster = smallestBigCluster
-                firstLocalAppearance = firstAppearance
-
-            elif len(smallestBigCluster) == len(smallestBigLocalCluster):
-                if isWord(smallestBigLocalCluster[0].value) and not isWord(smallestBigCluster[0].value):
-                    smallestBigLocalCluster = smallestBigCluster
-                    firstLocalAppearance = firstAppearance
-                elif (isWord(smallestBigLocalCluster[0].value) or not isWord(smallestBigCluster[0].value)) and \
-                                len(smallestBigCluster[0].value) < len(smallestBigLocalCluster[0].value):
-                    smallestBigLocalCluster = smallestBigCluster
-                    firstLocalAppearance = firstAppearance
-
-    biggestLineRange = {}
-    biggestLineRange["Line Range"] = 0
-    biggestLineRange["Variable"] = None
-    for cluster in clusters:
-        distance = getBiggestDistance(cluster)
-        if distance > biggestLineRange["Line Range"]:
-            biggestLineRange["Line Range"] = distance
-            biggestLineRange["Variable"] = cluster[0][0]
-
-    return smallestBigGlobalCluster, smallestBigLocalCluster, firstLocalAppearance, biggestLineRange
+    return tooLongVariables
 
 def isWord(string):
-    nlDict = enchant.Dict("nl_NL")
-    engDict = enchant.Dict("en_US")
+    global nlDict
+    global engDict
     return (nlDict.check(string) or engDict.check(string))
 
-def getBiggestDistance(cluster):
+# finds biggest distance between clusters
+def getBiggestDistance(clusters):
     biggestDistance = 0
 
-    for nameNode, nextNameNode in zip(cluster, cluster[1:]):
+    for nameNode, nextNameNode in zip(clusters, clusters[1:]):
         distance = getLineNumber(nextNameNode[0]) - getLineNumber(nameNode[-1])
         if distance > biggestDistance:
             biggestDistance = distance
 
     return biggestDistance
 
+# returns best matching variable for short names
+def findBestShortVariable(variables, checkForMin):
+
+    # filter out all dictionary words only if non-dictionary word is present
+    if any(not isWord(variable[0].value) for variable in variables):
+        variables = [variable for variable in variables if not isWord(variable[0].value)]
+
+    if checkForMin:
+        # only leaving in all variables where biggest cluster is the smallest of all variables
+        minLength = min(variables, key=lambda variable: variable[1])[1]
+        variables = [variable for variable in variables if variable[1] == minLength]
+    else:
+        # only leaving in all variables with biggest line range in between clusters
+        maxLength = max(variables, key=lambda variable: variable[1])[1]
+        variables = [variable for variable in variables if variable[1] == maxLength]
+
+    # find variable with shortest name
+    return min(variables, key=lambda variable: len(variable[0].value))
+
+def findBestLongVariable(variables):
+    # only leaving in all variables with biggest line range in between clusters
+    maxClusterLength = max(variables, key=lambda variable: variable[1])[1]
+    variables = [variable for variable in variables if variable[1] == maxClusterLength]
+
+    # find variable(s) with longest name
+    maxNameVariable = max(variables, key=lambda variable: len(variable[0][0].value))
+    maxNameLength = len(maxNameVariable[0][0].value)
+    variables = [variable for variable in variables if len(variable[0][0].value) == maxNameLength]
+
+    # return variable where cluster has smallest line range
+    return min(variables, key=lambda variable: getLineNumber(variable[0][-1]) - getLineNumber(variable[0][0]))
 
 if __name__ == "__main__":
+    nlDict = enchant.Dict("nl_NL")
+    engDict = enchant.Dict("en_US")
+
     fileName = raw_input("Give file name: ")
 
     with open("test_files/" + fileName + ".py", "r") as source_code:
@@ -338,15 +329,14 @@ if __name__ == "__main__":
     allVariables = getAllVariables(red)
     singleLetterNames = getSingleLetterNames(allVariables, parameters.EXCLUDE_ITERATORS)
     belowAverageNames = getBelowGoalAverageNames(allVariables, parameters.EXCLUDE_SINGLE_LETTER, parameters.EXCLUDE_ITERATORS)
-    # averageNames = getGoalAverageNames(allVariables)
     aboveAverageNames = getAboveGoalAverageNames(allVariables)
     tooLongNames = getTooLongNames(allVariables)
 
     if allVariables:
         averageNameLength = calculateAverageNameLength(allVariables)
 
-    biggestGlobalCluster, biggestLocalCluster = getAboveAverageData(red, aboveAverageNames)
-    smallestBigGlobalCluster, smallestBigLocalCluster, firstLocalAppearance, biggestLineRange = getBelowAverageData(red, belowAverageNames)
+    tooShortVariables = getTooShortVariables(red, belowAverageNames)
+    toolongVariables = getTooLongVariables(red, aboveAverageNames)
 
     if singleLetterNames:
         print "\n", feedback.SINGLE_LETTER
@@ -365,33 +355,43 @@ if __name__ == "__main__":
         print "\n", feedback.TOO_LONG_AVERAGE
 
 
-    if smallestBigGlobalCluster and len(smallestBigGlobalCluster) < parameters.GLOBAL_BIG_CLUSTER:
+    if tooShortVariables.has_key(feedback.GLOBAL_TOO_SHORT_SMALL_CLUSTER):
+        bestVariable = findBestShortVariable(tooShortVariables[feedback.GLOBAL_TOO_SHORT_SMALL_CLUSTER], True)
+
         print "\n" + feedback.GLOBAL_TOO_SHORT_SMALL_CLUSTER
         print feedback.EXAMPLE_TOO_SHORT
-        print "\t- '" + smallestBigGlobalCluster[0].value + "', first appearance in line " + \
-              str(getLineNumber(smallestBigGlobalCluster[0]))
+        print "\t- '" + bestVariable[0].value + "', first appearance in line " + \
+              str(getLineNumber(bestVariable[0]))
 
-    if smallestBigLocalCluster and len(smallestBigLocalCluster) < parameters.LOCAL_BIG_CLUSTER:
+    if tooShortVariables.has_key(feedback.LOCAL_TOO_SHORT_SMALL_CLUSTER):
+        bestVariable = findBestShortVariable(tooShortVariables[feedback.LOCAL_TOO_SHORT_SMALL_CLUSTER], True)
+
         print "\n" + feedback.LOCAL_TOO_SHORT_SMALL_CLUSTER
         print feedback.EXAMPLE_TOO_SHORT
-        print "\t- '" + firstLocalAppearance.value + "', first appearance in line " + \
-              str(getLineNumber(firstLocalAppearance))
+        print "\t- '" + bestVariable[0].value + "', first appearance in line " + \
+              str(getLineNumber(bestVariable[0]))
 
-    if biggestLineRange["Line Range"] > 10:
+    if tooShortVariables.has_key(feedback.TOO_SHORT_BIG_LINE_RANGE):
+        bestVariable = findBestShortVariable(tooShortVariables[feedback.TOO_SHORT_BIG_LINE_RANGE], False)
+
         print "\n" + feedback.TOO_SHORT_BIG_LINE_RANGE
         print feedback.EXAMPLE_TOO_SHORT
-        print "\t- '" + biggestLineRange["Variable"].value + "', first appearance in line " + \
-              str(getLineNumber(biggestLineRange["Variable"]))
+        print "\t- '" + bestVariable[0].value + "', first appearance in line " + \
+              str(getLineNumber(bestVariable[0]))
 
 
-    if len(biggestGlobalCluster) >= parameters.GLOBAL_BIG_CLUSTER:
+    if toolongVariables.has_key(feedback.GLOBAL_TOO_LONG_BIG_CLUSTER):
+        bestVariable = findBestLongVariable(toolongVariables[feedback.GLOBAL_TOO_LONG_BIG_CLUSTER])
+
         print "\n" + feedback.GLOBAL_TOO_LONG_BIG_CLUSTER
         print feedback.EXAMPLE_TOO_LONG
-        print "\t- '" + biggestGlobalCluster[0].value + "' is used too much in lines " + \
-              str(getLineNumber(biggestGlobalCluster[0])) + "-" + str(getLineNumber(biggestGlobalCluster[-1]))
+        print "\t- '" + bestVariable[0][0].value + "' is used too much in lines " + \
+              str(getLineNumber(bestVariable[0][0])) + "-" + str(getLineNumber(bestVariable[0][-1]))
 
-    if len(biggestLocalCluster) >= parameters.LOCAL_BIG_CLUSTER:
+    if toolongVariables.has_key(feedback.LOCAL_TOO_LONG_BIG_CLUSTER):
+        bestVariable = findBestLongVariable(toolongVariables[feedback.LOCAL_TOO_LONG_BIG_CLUSTER])
+
         print "\n" + feedback.LOCAL_TOO_LONG_BIG_CLUSTER
         print feedback.EXAMPLE_TOO_LONG
-        print "\t- '" + biggestLocalCluster[0].value + "' is used too much in lines " + \
-              str(getLineNumber(biggestLocalCluster[0])) + "-" + str(getLineNumber(biggestLocalCluster[-1]))
+        print "\t- '" + bestVariable[0][0].value + "' is used too much in lines " + \
+              str(getLineNumber(bestVariable[0][0])) + "-" + str(getLineNumber(bestVariable[0][-1]))
