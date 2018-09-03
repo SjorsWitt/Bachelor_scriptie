@@ -129,6 +129,23 @@ def getSingleLetterNames(nameNodes, excludeIterators = True):
 
     return singleLetterNames
 
+def getSingleLetterVariables(nameNodes):
+    singleLetterVariables = []
+
+    for nameNode in nameNodes:
+        allOccurrences = getAllNameOccurrences(red, nameNode)
+        scopes = getScopes(allOccurrences, parameters.CLUSTER_DISTANCE)
+
+        if scopes["Global"]:
+            singleLetterVariables.append(scopes["Global"]["Variables"][0])
+
+        if scopes["Local"]:
+            for localScope in scopes["Local"]:
+                singleLetterVariables.append(localScope["Variables"][0])
+
+    singleLetterVariables.sort(key=lambda variable: getLineNumber(variable))
+    return singleLetterVariables
+
 # returns names that are too long in every scenario (longer than parameters.MAX_NAME_LENGTH)
 def getTooLongNames(nameNodes):
     tooLongNames = []
@@ -344,6 +361,7 @@ if __name__ == "__main__":
 
     tooShortVariables = getTooShortVariables(red, belowAverageNames)
     toolongVariables = getTooLongVariables(red, aboveAverageNames)
+    singleLetterVariables = getSingleLetterVariables(singleLetterNames)
 
     if allVariables and averageNameLength < parameters.MIN_AVERAGE_NAME_LENGTH:
         print "\n" + feedback.TOO_SHORT_AVERAGE
@@ -358,9 +376,9 @@ if __name__ == "__main__":
                         engDict.check(variable.value) for variable in allVariables):
         print "\n" + feedback.SAME_LANGUAGE
 
-    if singleLetterNames:
+    if singleLetterVariables:
         print "\n" + feedback.SINGLE_LETTER
-        for nameNode in singleLetterNames:
+        for nameNode in singleLetterVariables:
             print "'" + nameNode.value + "', first appearance in line " + str(getLineNumber(nameNode)) + "."
 
     if tooLongNames:
@@ -369,43 +387,53 @@ if __name__ == "__main__":
             print "'" + nameNode.value + "', first appearance in line " + str(getLineNumber(nameNode)) + "."
 
 
-    if tooShortVariables.has_key(feedback.GLOBAL_TOO_SHORT_CLUSTER):
-        bestVariable = findBestShortVariable(tooShortVariables[feedback.GLOBAL_TOO_SHORT_CLUSTER], True)
+    # if tooShortVariables.has_key(feedback.GLOBAL_TOO_SHORT_CLUSTER):
+    #     bestVariable = findBestShortVariable(tooShortVariables[feedback.GLOBAL_TOO_SHORT_CLUSTER], True)
+    #
+    #     print "\n" + feedback.GLOBAL_TOO_SHORT_CLUSTER
+    #     print feedback.EXAMPLE_GLOBAL_SHORT_CLUSTER
+    #     print "\t- '" + bestVariable[0].value + "', first appearance in line " + \
+    #           str(getLineNumber(bestVariable[0]))
+    #
+    # if tooShortVariables.has_key(feedback.LOCAL_TOO_SHORT_CLUSTER):
+    #     bestVariable = findBestShortVariable(tooShortVariables[feedback.LOCAL_TOO_SHORT_CLUSTER], True)
+    #
+    #     print "\n" + feedback.LOCAL_TOO_SHORT_CLUSTER
+    #     print feedback.EXAMPLE_LOCAL_SHORT_CLUSTER
+    #     print "\t- '" + bestVariable[0].value + "', first appearance in line " + \
+    #           str(getLineNumber(bestVariable[0]))
+    #
+    # if tooShortVariables.has_key(feedback.TOO_SHORT_LINE_RANGE):
+    #     bestVariable = findBestShortVariable(tooShortVariables[feedback.TOO_SHORT_LINE_RANGE], False)
+    #
+    #     print "\n" + feedback.TOO_SHORT_LINE_RANGE
+    #     print feedback.EXAMPLE_SHORT_LINE_RANGE
+    #     print "\t- '" + bestVariable[0].value + "', first appearance in line " + \
+    #           str(getLineNumber(bestVariable[0]))
+    #
+    #
+    # if toolongVariables.has_key(feedback.GLOBAL_TOO_LONG_CLUSTER):
+    #     bestVariable = findBestLongVariable(toolongVariables[feedback.GLOBAL_TOO_LONG_CLUSTER])
+    #
+    #     print "\n" + feedback.GLOBAL_TOO_LONG_CLUSTER
+    #     print feedback.EXAMPLE_GLOBAL_LONG_CLUSTER
+    #     print "\t- '" + bestVariable[0][0].value + "' is used frequently in lines " + \
+    #           str(getLineNumber(bestVariable[0][0])) + "-" + str(getLineNumber(bestVariable[0][-1]))
+    #
+    # if toolongVariables.has_key(feedback.LOCAL_TOO_LONG_CLUSTER):
+    #     bestVariable = findBestLongVariable(toolongVariables[feedback.LOCAL_TOO_LONG_CLUSTER])
+    #
+    #     print "\n" + feedback.LOCAL_TOO_LONG_CLUSTER
+    #     print feedback.EXAMPLE_LOCAL_LONG_CLUSTER
+    #     print "\t- '" + bestVariable[0][0].value + "' is used frequently in lines " + \
+    #           str(getLineNumber(bestVariable[0][0])) + "-" + str(getLineNumber(bestVariable[0][-1]))
 
-        print "\n" + feedback.GLOBAL_TOO_SHORT_CLUSTER
-        print feedback.EXAMPLE_GLOBAL_SHORT_CLUSTER
-        print "\t- '" + bestVariable[0].value + "', first appearance in line " + \
-              str(getLineNumber(bestVariable[0]))
+    for key in tooShortVariables:
+        print "\n" + key
+        for variable in tooShortVariables[key]:
+            print str(getLineNumber(variable[0])) + " - " + variable[0].value
 
-    if tooShortVariables.has_key(feedback.LOCAL_TOO_SHORT_CLUSTER):
-        bestVariable = findBestShortVariable(tooShortVariables[feedback.LOCAL_TOO_SHORT_CLUSTER], True)
-
-        print "\n" + feedback.LOCAL_TOO_SHORT_CLUSTER
-        print feedback.EXAMPLE_LOCAL_SHORT_CLUSTER
-        print "\t- '" + bestVariable[0].value + "', first appearance in line " + \
-              str(getLineNumber(bestVariable[0]))
-
-    if tooShortVariables.has_key(feedback.TOO_SHORT_LINE_RANGE):
-        bestVariable = findBestShortVariable(tooShortVariables[feedback.TOO_SHORT_LINE_RANGE], False)
-
-        print "\n" + feedback.TOO_SHORT_LINE_RANGE
-        print feedback.EXAMPLE_SHORT_LINE_RANGE
-        print "\t- '" + bestVariable[0].value + "', first appearance in line " + \
-              str(getLineNumber(bestVariable[0]))
-
-
-    if toolongVariables.has_key(feedback.GLOBAL_TOO_LONG_CLUSTER):
-        bestVariable = findBestLongVariable(toolongVariables[feedback.GLOBAL_TOO_LONG_CLUSTER])
-
-        print "\n" + feedback.GLOBAL_TOO_LONG_CLUSTER
-        print feedback.EXAMPLE_GLOBAL_LONG_CLUSTER
-        print "\t- '" + bestVariable[0][0].value + "' is used frequently in lines " + \
-              str(getLineNumber(bestVariable[0][0])) + "-" + str(getLineNumber(bestVariable[0][-1]))
-
-    if toolongVariables.has_key(feedback.LOCAL_TOO_LONG_CLUSTER):
-        bestVariable = findBestLongVariable(toolongVariables[feedback.LOCAL_TOO_LONG_CLUSTER])
-
-        print "\n" + feedback.LOCAL_TOO_LONG_CLUSTER
-        print feedback.EXAMPLE_LOCAL_LONG_CLUSTER
-        print "\t- '" + bestVariable[0][0].value + "' is used frequently in lines " + \
-              str(getLineNumber(bestVariable[0][0])) + "-" + str(getLineNumber(bestVariable[0][-1]))
+    for key in toolongVariables:
+        print "\n" + key
+        for variable in toolongVariables[key]:
+            print str(getLineNumber(variable[0][0])) + " - " + variable[0][0].value

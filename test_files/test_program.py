@@ -2,8 +2,12 @@ a, b = 1, 2
 c = a + b
 d = 0
 myList = range(10)
+myList += [1]
+myVar = True
+myVar = False
 emptyList = []
 thisNameIsGood = True
+appropriate = True
 
 aboveAverageButNotTooLong = True
 doAnotherThing(aboveAverageButNotTooLong)
@@ -25,6 +29,7 @@ def longNameInSmallScope(someList):
 	return anotherLongNamedList
 
 def anotherFunction(someList):
+	anotherLongNamedList = "test"
 	anotherLongNamedList = someList
 	return anotherLongNamedList
 
@@ -33,8 +38,13 @@ something = doSomething(a, c)
 for i in myList:
 	d += i
 
+anotherLongNamedList = True
 anotherLongNamedList
 anotherLongNamedList
 anotherLongNamedList
-anotherLongNamedList
+waheiugahosiughdsou=0
+waheiugahosiughdsou
+waheiugahosiughdsou
+waheiugahosiughdsou
+waheiugahosiughdsou
 aboveAverageButNotTooLong

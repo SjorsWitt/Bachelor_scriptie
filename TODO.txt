@@ -1,0 +1,21 @@
+nog alle feedback even nalopen om te kijken of dit wel echt duidelijk is
+
+wel of niet single letter variables
+
+for/while loops als aparte scope?
+
+checken of korte namen een woord zijn met dictionary nl/eng
+
+
+PROBLEMEN
+- Global variables die ook gebruikt worden in local scope worden gezien als aparte variabelen in de global/local scopes
+- Goede descriptieve, maar korte namen: x, y, ball, student, datum, date
+- Niet goed descriptieve namen, maar die wel vaak gebruikt worden in korte stuk code.
+  Meestal geen probleem, want vaak wel één naam die te kort is en niet vaak gebruikt wordt die de feedback triggert.
+  Soms wel probleem: Check goldbach2.py
+-
+
+
+DONE
+smallestBigLocalCluster (LOCAL_TOO_SHORT_SMALL_CLUSTER) geeft geen first appearance, maar het grootste cluster van de variable
+errors bij programma zonder variabelen
